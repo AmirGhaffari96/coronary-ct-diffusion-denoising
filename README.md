@@ -119,12 +119,13 @@ ssh -L 8712:localhost:8712 <this-host>
 One slice index drives every panel. Wheel = scroll slices, drag = pan,
 ctrl+wheel = zoom, ←/→ = step, space = cine.
 
-**Before/after swipe** puts two registered panels in one view behind a
-draggable divider — pick any two of the eight panels, drag the blue line to
-wipe between them, double-click it to recentre. The HU readout follows whichever
-side the cursor is on.
+**Swipe** is one of the panels: tick it in the Panels menu and it takes a cell
+in the grid, holding two registered layers behind a draggable divider. Pick any
+two panels for its sides, drag the blue line to wipe between them, double-click
+to recentre. The HU readout follows whichever side the cursor is on. It is on
+by default, in place of the CCTA panel.
 
-State lives in the URL (`?case=…&z=…&panels=…&w=…&l=…&mask=1&swipe=1&sa=…&sb=…&sx=…`)
+State lives in the URL (`?case=…&z=…&panels=…&w=…&l=…&mask=1&sa=…&sb=…&sx=…`)
 so a specific comparison can be linked. Details in [docs/viewer.md](docs/viewer.md).
 
 ## Segmentations used

@@ -25,13 +25,18 @@ and open <http://localhost:8712> locally. See
 
 ## Panels
 
-Eight panels, toggled in the sidebar:
+Nine panels, all toggled from the single **Panels** menu in the sidebar:
 
 | panel | content |
 |---|---|
 | `ncct_original` / `ncct_corediff` / `ncct_founddiff` | the non-contrast scan, before and after each model |
 | `ccta_original` / `ccta_corediff` / `ccta_founddiff` | the registered CCTA, same |
 | `ncct_diff_corediff` / `ncct_diff_founddiff` | original − denoised, i.e. **what the model removed** |
+| `swipe` | two panels in one cell, split by a draggable divider (see below) |
+
+The default set is the three NCCT panels plus `swipe`. CCTA panels are
+available but off by default — the non-contrast scan is what these models are
+for, so it earns the default real estate.
 
 The difference panels are the most diagnostic of the set. A good denoiser's
 difference image should look like structureless noise. Visible vessel outlines
@@ -39,13 +44,16 @@ in it mean anatomy is being removed, not noise.
 
 ## Before / after swipe
 
-The **Before / after swipe** fieldset replaces the grid with a single large
-panel holding two registered layers, split by a draggable divider — the
-clearest way to see what changed at a given point in the image.
+`swipe` is a panel like any other: tick it and it takes one cell in the grid,
+alongside the ordinary panels, holding two registered layers split by a
+draggable divider. It is the clearest way to see what changed at a given point,
+and because it is just a cell you can keep the single-panel views beside it.
 
-- **on by default** — the viewer opens in swipe mode; uncheck `swipe compare` for the multi-panel grid
-- pick the **before** and **after** panels independently (any two of the
-  eight — including CCTA vs NCCT, or one model against the other)
+Its settings live directly under the panel list, and appear only while the
+panel is ticked.
+
+- pick the **before** and **after** layers independently (any two of the other
+  eight panels — including CCTA vs NCCT, or one model against the other)
 - **drag the blue divider** to wipe across; or use the `divider` slider
 - **double-click the divider** to recentre it at 50%
 - the HU readout reports the layer on the side the cursor is actually over,
@@ -78,17 +86,16 @@ Everything lives in the URL, so a specific finding can be sent to someone else:
 
 ```
 ?case=<CASE-ID>&z=150&panels=ncct_original,ncct_founddiff
-&w=600&l=100&mask=1&swipe=1&sa=ncct_original&sb=ncct_founddiff&sx=50
+&w=600&l=100&mask=1&sa=ncct_original&sb=ncct_founddiff&sx=50
 ```
 
 | key | meaning |
 |---|---|
 | `case`, `z` | case and slice index |
-| `panels` | comma-separated active panels (grid mode) |
+| `panels` | comma-separated active panels, `swipe` included |
 | `w`, `l` | window width / level |
 | `mask` | coronary mask overlay on |
-| `swipe` | swipe mode on |
-| `sa`, `sb` | before / after panel |
+| `sa`, `sb` | the swipe panel's before / after layers |
 | `sx` | divider position, percent |
 
 ## How it renders

@@ -56,6 +56,7 @@
            justify-content:center;flex-direction:column;gap:12px;z-index:50}
   #bar{width:280px;height:4px;background:var(--line);border-radius:2px;overflow:hidden}
   #bar div{height:100%;width:0;background:var(--accent)}
+  #swipeCfg{margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
 
   /* ---- before/after swipe compare ----
      Both layers fill the cell and share the same pan/zoom transform, so they
@@ -83,18 +84,16 @@
     <div class="kv"><span>coronary z</span><b id="mZ">–</b></div>
   </fieldset>
 
-  <fieldset><legend>Before / after swipe</legend>
-    <label class="chk"><input type="checkbox" id="swipeOn" checked> swipe compare</label>
-    <label>before <select id="swipeA"></select></label>
-    <label>after <select id="swipeB"></select></label>
-    <div class="kv"><span>divider</span><b id="swipeXv">50%</b></div>
-    <input type="range" id="swipeX" min="0" max="100" step="0.5" value="50">
-    <div class="sub" style="margin:8px 0 0">Drag the blue divider in the image.
-      Uncheck for the multi-panel grid.</div>
+  <fieldset><legend>Panels</legend>
+    <div id="panels"></div>
+    <div id="swipeCfg">
+      <div class="sub" style="margin:0 0 6px">Swipe panel — drag the blue divider</div>
+      <label>before <select id="swipeA"></select></label>
+      <label>after <select id="swipeB"></select></label>
+      <div class="kv"><span>divider</span><b id="swipeXv">50%</b></div>
+      <input type="range" id="swipeX" min="0" max="100" step="0.5" value="50">
+    </div>
   </fieldset>
-
-  <fieldset><legend>Panels <span class="kv" style="display:inline">(grid mode)</span></legend>
-    <div id="panels"></div></fieldset>
 
   <fieldset><legend>Window / level</legend>
     <select id="preset">
@@ -141,13 +140,17 @@
 const LABEL = {
   ncct_original:'NCCT · original', ncct_corediff:'NCCT · CoreDiff', ncct_founddiff:'NCCT · FoundDiff',
   ccta_original:'CCTA · original', ccta_corediff:'CCTA · CoreDiff', ccta_founddiff:'CCTA · FoundDiff',
-  ncct_diff_corediff:'removed by CoreDiff', ncct_diff_founddiff:'removed by FoundDiff'
+  ncct_diff_corediff:'removed by CoreDiff', ncct_diff_founddiff:'removed by FoundDiff',
+  swipe:'swipe · before / after'
 };
-const DEFAULT_ON = ['ncct_original','ncct_corediff','ncct_founddiff','ccta_original'];
+/* Panels that can sit on either side of the swipe divider — everything except
+   the swipe panel itself. */
+const SWIPEABLE = Object.keys(LABEL).filter(n=>n!=='swipe');
+const DEFAULT_ON = ['ncct_original','ncct_corediff','ncct_founddiff','swipe'];
 
 let MAN=null, METRICS=null, cur=null, z=0, cells=[], active=[...DEFAULT_ON];
-/* swipe compare: one cell, two registered layers, B clipped at x% */
-let swipe={on:true, a:'ncct_original', b:'ncct_founddiff', x:50};
+/* the swipe panel's config: two registered layers, B clipped at x% */
+let swipe={a:'ncct_original', b:'ncct_founddiff', x:50};
 let cache=new Map();            // key -> HTMLImageElement
 let view={scale:1,tx:0,ty:0};
 let playing=null;
@@ -166,7 +169,6 @@ async function boot(){
   if(Q.get('w')) $('#ww').value=Q.get('w');
   if(Q.get('l')) $('#wl').value=Q.get('l');
   if(Q.get('mask')==='1') $('#mask').checked=true;
-  if(Q.has('swipe')) swipe.on = Q.get('swipe')==='1';
   if(Q.get('sa') in LABEL) swipe.a=Q.get('sa');
   if(Q.get('sb') in LABEL) swipe.b=Q.get('sb');
   if(Q.get('sx')!==null && !isNaN(+Q.get('sx'))) swipe.x=Math.min(100,Math.max(0,+Q.get('sx')));
@@ -190,8 +192,7 @@ function syncURL(){
   const q=new URLSearchParams({case:cur.case, z:z, panels:active.join(','),
                                w:$('#ww').value, l:$('#wl').value,
                                mask:$('#mask').checked?'1':'0',
-                               swipe:swipe.on?'1':'0', sa:swipe.a, sb:swipe.b,
-                               sx:swipe.x});
+                               sa:swipe.a, sb:swipe.b, sx:swipe.x});
   history.replaceState(null,'','?'+q);
 }
 
@@ -200,8 +201,12 @@ function buildPanelToggles(){
   Object.keys(LABEL).forEach(name=>{
     const l=document.createElement('label'); l.className='chk';
     const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=active.includes(name);
-    cb.onchange=()=>{ active = Object.keys(LABEL).filter(n=>host.querySelector(`input[data-n="${n}"]`).checked);
-                      buildGrid(); render(); };
+    cb.onchange=async()=>{
+      active = Object.keys(LABEL).filter(n=>host.querySelector(`input[data-n="${n}"]`).checked);
+      syncSwipeCfg(); buildGrid();
+      await preload();            // a newly ticked panel is not in the cache yet
+      fitView(); render();
+    };
     cb.dataset.n=name;
     l.appendChild(cb); l.appendChild(document.createTextNode(LABEL[name])); host.appendChild(l);
   });
@@ -210,21 +215,31 @@ function buildPanelToggles(){
 function buildSwipeControls(){
   for(const [sel,val] of [['#swipeA',swipe.a],['#swipeB',swipe.b]]){
     const el=$(sel); el.innerHTML='';
-    Object.keys(LABEL).forEach(n=>{
+    SWIPEABLE.forEach(n=>{
       const o=document.createElement('option'); o.value=n; o.textContent=LABEL[n]; el.appendChild(o);
     });
     el.value=val;
   }
-  $('#swipeOn').checked=swipe.on;
   $('#swipeX').value=swipe.x;
   $('#swipeXv').textContent=swipe.x+'%';
+  syncSwipeCfg();
+}
+
+/* The swipe settings only mean anything while the swipe panel is shown. */
+function syncSwipeCfg(){
+  $('#swipeCfg').style.display = active.includes('swipe') ? 'block' : 'none';
 }
 
 /* Which panels the current layout actually needs decoded. In swipe mode the
    grid shows two panels regardless of the Panels checkboxes, so preloading
    `active` would fetch the wrong set. */
 function panelsNeeded(){
-  return swipe.on ? [...new Set([swipe.a, swipe.b])] : active;
+  const out=new Set();
+  for(const n of active){
+    if(n==='swipe'){ out.add(swipe.a); out.add(swipe.b); }
+    else out.add(n);
+  }
+  return [...out];
 }
 
 function key(caseName,panel,zz){ return `${caseName}/${panel}/${String(zz).padStart(4,'0')}`; }
@@ -278,23 +293,21 @@ async function preload(){
 
 function buildGrid(){
   gridEl.innerHTML=''; cells=[];
-  if(swipe.on){ buildSwipeCell(); }
-  else{
-    const n=active.length||1;
-    const cols=n<=1?1:n<=2?2:n<=4?2:3;
-    const rows=Math.ceil(n/cols);
-    gridEl.style.gridTemplateColumns=`repeat(${cols},1fr)`;
-    gridEl.style.gridTemplateRows=`repeat(${rows},1fr)`;
-    active.forEach(name=>{
-      const d=document.createElement('div'); d.className='cell';
-      d.innerHTML=`<div class="stage"><canvas></canvas></div>
-                   <canvas class="ov"></canvas>
-                   <div class="tag">${LABEL[name]}</div><div class="hu"></div>`;
-      gridEl.appendChild(d);
-      cells.push({el:d, hu:d.querySelector('.hu'), ov:d.querySelector('.ov'),
-                  layers:[{name, cv:d.querySelector('.stage canvas')}]});
-    });
-  }
+  const n=active.length||1;
+  const cols=n<=1?1:n<=2?2:n<=4?2:3;
+  const rows=Math.ceil(n/cols);
+  gridEl.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+  gridEl.style.gridTemplateRows=`repeat(${rows},1fr)`;
+  active.forEach(name=>{
+    if(name==='swipe'){ buildSwipeCell(); return; }
+    const d=document.createElement('div'); d.className='cell';
+    d.innerHTML=`<div class="stage"><canvas></canvas></div>
+                 <canvas class="ov"></canvas>
+                 <div class="tag">${LABEL[name]}</div><div class="hu"></div>`;
+    gridEl.appendChild(d);
+    cells.push({el:d, hu:d.querySelector('.hu'), ov:d.querySelector('.ov'),
+                layers:[{name, cv:d.querySelector('.stage canvas')}]});
+  });
   attachInteractions();
   requestAnimationFrame(fitView);
 }
@@ -303,8 +316,6 @@ function buildGrid(){
    the identical pan/zoom transform, so the two scans stay pixel-registered;
    only the clip of the top stage moves when the divider is dragged. */
 function buildSwipeCell(){
-  gridEl.style.gridTemplateColumns='1fr';
-  gridEl.style.gridTemplateRows='1fr';
   const d=document.createElement('div'); d.className='cell swipe';
   d.innerHTML=`<div class="stage A"><canvas></canvas></div>
                <div class="stage B"><canvas></canvas></div>
@@ -349,6 +360,8 @@ function filterFor(kind){
 }
 
 function kindOf(name){ return name.startsWith('ncct_diff')?'diff': name.startsWith('ccta')?'ccta':'ncct'; }
+/* 'swipe' is a composite panel, never an image key, so it never reaches
+   kindOf/url/key — buildGrid expands it into its two layers first. */
 
 function render(){
   if(!cur) return;
@@ -488,16 +501,12 @@ function wireControls(){
     const [w,l]=e.target.value.split(',').map(Number); $('#ww').value=w; $('#wl').value=l; applyWL(); };
   if(!Q.get('w')&&!Q.get('l')) $('#preset').dispatchEvent(new Event('change'));
   $('#mask').onchange=$('#invert').onchange=render;
-  $('#swipeOn').onchange=async e=>{
-    swipe.on=e.target.checked;
-    buildGrid(); fillMetrics();
-    await preload();                       // swipe may need panels not yet decoded
-    fitView(); render();
-  };
   $('#swipeA').onchange=$('#swipeB').onchange=async e=>{
     swipe[e.target.id==='swipeA'?'a':'b']=e.target.value;
-    if(!swipe.on){ syncURL(); return; }
-    buildGrid(); await preload(); fitView(); render();
+    if(!active.includes('swipe')){ syncURL(); return; }
+    buildGrid();
+    await preload();                       // the new side may not be decoded yet
+    fitView(); render();
   };
   $('#swipeX').oninput=e=>{ swipe.x=+e.target.value; applySwipeX(); syncURL(); };
   $('#fit').onclick=fitView;
