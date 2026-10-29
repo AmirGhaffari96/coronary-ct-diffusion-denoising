@@ -1,8 +1,17 @@
-"""Comparison figures: original vs CoreDiff vs FoundDiff, with CCTA reference.
+"""Comparison figures: original vs CoreDiff vs FoundDiff, for both modalities.
 
 For each case we pick the axial slice carrying the most coronary voxels and
-render it in a cardiac window, plus a zoomed crop centred on the coronary
-centroid so the vessel itself is actually legible.
+render it, plus a zoomed crop centred on the coronary centroid so the vessel
+itself is actually legible. Four rows: non-contrast full and zoom, then CCTA
+full and zoom, each showing original / CoreDiff / FoundDiff side by side.
+
+Each modality is rendered in its own window — contrast-filled lumen sits far
+above non-contrast tissue, so one shared window would make one or the other
+unreadable.
+
+These figures are patient images: they render real anatomy, and the default
+title carries the accession ID. Pass --anonymise to title by index instead.
+Either way they are gitignored and must never be committed.
 """
 import argparse
 import json
@@ -35,10 +44,12 @@ def main():
     ap.add_argument('--outputs', default='/mnt/raid2/amirg/Diff Models/work/outputs')
     ap.add_argument('--figdir', default='/mnt/raid2/amirg/Diff Models/work/figures')
     ap.add_argument('--crop', type=int, default=140)
+    ap.add_argument('--anonymise', action='store_true',
+                    help='title and name figures by index rather than accession ID')
     args = ap.parse_args()
     os.makedirs(args.figdir, exist_ok=True)
 
-    for rec in json.load(open(args.cases)):
+    for idx, rec in enumerate(json.load(open(args.cases)), start=1):
         case = rec['case']
         p = ctio.case_paths(case)
         cb, _, _ = ctio.load_hu(p['coronary'])
@@ -60,26 +71,36 @@ def main():
                     vv, _, _ = ctio.load_hu(f)
                     vols[(mod, m)] = vv[:, :, z]
 
-        variants = ['original'] + [m for m in MODELS if ('ncct', m) in vols]
-        ncol = len(variants) + 1                      # + CCTA reference column
-        fig, axes = plt.subplots(2, ncol, figsize=(3.0 * ncol, 6.4))
-
-        for c, var in enumerate(variants):
-            im = vols[('ncct', var)]
-            show(axes[0, c], im, WIN['ncct'], f'NCCT · {LABEL[var]}')
-            show(axes[1, c], im[y0:y1, x0:x1], WIN['ncct'], f'zoom · {LABEL[var]}')
-        ref = vols[('ccta', 'original')]
-        show(axes[0, -1], ref, WIN['ccta'], 'CCTA reference')
-        show(axes[1, -1], ref[y0:y1, x0:x1], WIN['ccta'], 'zoom · CCTA')
-        # outline the coronary mask on the zoom panels
+        # one row-pair (full + zoom) per modality, variants across the columns
+        per_mod = {mod: ['original'] + [m for m in MODELS if (mod, m) in vols]
+                   for mod in ['ncct', 'ccta']}
+        ncol = max(len(v) for v in per_mod.values())
+        fig, axes = plt.subplots(4, ncol, figsize=(3.0 * ncol, 12.6),
+                                 squeeze=False)
         mask = cb[y0:y1, x0:x1, z] > 0
-        for c in range(ncol):
-            axes[1, c].contour(mask.T.astype(float), levels=[0.5],
-                               colors='#ff3b30', linewidths=0.7)
 
-        fig.suptitle(f'{case} — axial z={z} (coronary window -100..300 HU)', fontsize=11)
-        fig.tight_layout(rect=[0, 0, 1, 0.96])
-        dst = os.path.join(args.figdir, f'{case}_ncct_compare.png')
+        for r0, mod in ((0, 'ncct'), (2, 'ccta')):
+            tag = 'NCCT' if mod == 'ncct' else 'CCTA'
+            for c in range(ncol):
+                if c >= len(per_mod[mod]):
+                    axes[r0, c].axis('off')
+                    axes[r0 + 1, c].axis('off')
+                    continue
+                var = per_mod[mod][c]
+                im = vols[(mod, var)]
+                show(axes[r0, c], im, WIN[mod], f'{tag} · {LABEL[var]}')
+                show(axes[r0 + 1, c], im[y0:y1, x0:x1], WIN[mod],
+                     f'zoom · {tag} {LABEL[var]}')
+                # outline the coronary mask on the zoom panels
+                axes[r0 + 1, c].contour(mask.T.astype(float), levels=[0.5],
+                                        colors='#ff3b30', linewidths=0.7)
+
+        name = f'case-{idx:02d}' if args.anonymise else case
+        fig.suptitle(f'{name} — axial z={z}   ·   NCCT window '
+                     f'{WIN["ncct"][0]}..{WIN["ncct"][1]} HU   ·   CCTA window '
+                     f'{WIN["ccta"][0]}..{WIN["ccta"][1]} HU', fontsize=11)
+        fig.tight_layout(rect=[0, 0, 1, 0.975])
+        dst = os.path.join(args.figdir, f'{name}_compare.png')
         fig.savefig(dst, dpi=150)
         plt.close(fig)
         print(f'{case}: z={z} -> {dst}', flush=True)

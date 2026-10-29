@@ -84,9 +84,10 @@ on this metric CoreDiff is ahead.
 Numbers in a table do not show whether a denoiser ate a vessel. Two ways to
 check:
 
-- `work/figures/<case>_ncct_compare.png` — original / CoreDiff / FoundDiff at a
-  representative cardiac slice. Generated locally by `40_figures.py`; not
-  committed, since these are rendered patient slices.
+- `work/figures/<name>_compare.png` — original / CoreDiff / FoundDiff for
+  **both** modalities at a representative cardiac slice, full field and zoomed
+  on the coronary with the vessel mask outlined. Generated locally by
+  `40_figures.py`; not committed, since these are rendered patient slices.
 - The [viewer](viewer.md), in particular the **difference panels** (what each
   model removed — should look like structureless noise, with no vessel
   outlines) and the **before/after swipe**, which puts the divider wherever you

@@ -106,10 +106,20 @@ and the reasoning behind the ROI construction.
 
 ## `40_figures.py` — comparison figures
 
-Renders original / CoreDiff / FoundDiff side by side at a representative
-cardiac slice.
+Picks the axial slice carrying the most coronary voxels and renders four rows:
+non-contrast full and zoom, then CCTA full and zoom, each showing original /
+CoreDiff / FoundDiff side by side. The zoom crops to the coronary centroid and
+outlines the vessel mask in red.
 
-**Writes** `work/figures/<case>_ncct_compare.png`.
+Each modality uses its own display window (NCCT −100..300 HU, CCTA
+−100..700 HU) — contrast-filled lumen sits far above non-contrast tissue, so
+one shared window would make one or the other unreadable.
+
+`--anonymise` titles and names the figures by index (`case-01`) instead of the
+accession ID, which is otherwise rendered into the image itself.
+
+**Writes** `work/figures/<name>_compare.png`. Gitignored — these are patient
+images; see [data-and-privacy.md](data-and-privacy.md).
 
 ---
 
