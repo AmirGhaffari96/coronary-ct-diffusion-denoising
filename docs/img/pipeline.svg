@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 430" width="1000" height="430"
+     font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <style>
+    .box   { fill: none; stroke: #7d8590; stroke-width: 1.4; rx: 7; }
+    .data  { stroke: #7d8590; stroke-dasharray: 4 3; }
+    .core  { stroke: #4da3ff; stroke-width: 1.8; }
+    .found { stroke: #ff8a3b; stroke-width: 1.8; }
+    .t     { fill: #7d8590; font-size: 12.5px; }
+    .tb    { fill: #7d8590; font-size: 12.5px; font-weight: 650; }
+    .sm    { fill: #7d8590; font-size: 10.5px; opacity: .85; }
+    .cl    { fill: #4da3ff; font-size: 12.5px; font-weight: 650; }
+    .fl    { fill: #ff8a3b; font-size: 12.5px; font-weight: 650; }
+    .ar    { stroke: #7d8590; stroke-width: 1.3; fill: none; marker-end: url(#a); }
+    .arc   { stroke: #4da3ff; stroke-width: 1.3; fill: none; marker-end: url(#ac); }
+    .arf   { stroke: #ff8a3b; stroke-width: 1.3; fill: none; marker-end: url(#af); }
+  </style>
+  <defs>
+    <marker id="a"  markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 z" fill="#7d8590"/></marker>
+    <marker id="ac" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 z" fill="#4da3ff"/></marker>
+    <marker id="af" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 z" fill="#ff8a3b"/></marker>
+  </defs>
+
+  <!-- source data -->
+  <rect class="box data" x="14" y="150" width="166" height="118"/>
+  <text class="tb" x="30" y="176">MIHEART cohort</text>
+  <text class="sm" x="30" y="196">img.nii.gz — low-dose NCCT</text>
+  <text class="sm" x="30" y="213">regCCTA_*.nii.gz</text>
+  <text class="sm" x="30" y="230">coronary_branches</text>
+  <text class="sm" x="30" y="247">aorta calibration seg</text>
+  <text class="sm" x="30" y="284" font-style="italic">never committed</text>
+
+  <!-- select -->
+  <path class="ar" d="M182,209 L226,209"/>
+  <rect class="box" x="228" y="178" width="132" height="62"/>
+  <text class="tb" x="244" y="202">00 select</text>
+  <text class="sm" x="244" y="222">10 paired cases</text>
+
+  <!-- the two denoisers -->
+  <path class="arc" d="M362,197 C392,197 392,110 420,110"/>
+  <path class="arf" d="M362,221 C392,221 392,308 420,308"/>
+
+  <rect class="box core" x="422" y="78" width="160" height="64"/>
+  <text class="cl" x="438" y="102">10 CoreDiff</text>
+  <text class="sm" x="438" y="122">3-slice context · T=10</text>
+
+  <rect class="box found" x="422" y="276" width="160" height="64"/>
+  <text class="fl" x="438" y="300">20 FoundDiff</text>
+  <text class="sm" x="438" y="320">single slice · DDIM 2</text>
+
+  <!-- outputs -->
+  <path class="arc" d="M584,110 C614,110 614,196 642,196"/>
+  <path class="arf" d="M584,308 C614,308 614,222 642,222"/>
+  <rect class="box data" x="644" y="178" width="150" height="62"/>
+  <text class="tb" x="660" y="202">work/outputs/</text>
+  <text class="sm" x="660" y="222">denoised NIfTI, ~7 GB</text>
+
+  <!-- fan-out to the three consumers -->
+  <path class="ar" d="M796,196 C826,196 826,110 854,110"/>
+  <path class="ar" d="M796,209 L854,209"/>
+  <path class="ar" d="M796,222 C826,222 826,308 854,308"/>
+
+  <rect class="box" x="856" y="80" width="130" height="60"/>
+  <text class="tb" x="870" y="104">30 evaluate</text>
+  <text class="sm" x="870" y="123">metrics.json</text>
+
+  <rect class="box" x="856" y="179" width="130" height="60"/>
+  <text class="tb" x="870" y="203">40 figures</text>
+  <text class="sm" x="870" y="222">comparison PNGs</text>
+
+  <rect class="box" x="856" y="278" width="130" height="60"/>
+  <text class="tb" x="870" y="302">50 export</text>
+  <text class="sm" x="870" y="321">viewer slices</text>
+
+  <text class="sm" x="14" y="400" font-style="italic">
+    Everything right of “00 select” is regenerated locally; only the scripts are in this repository.
+  </text>
+</svg>

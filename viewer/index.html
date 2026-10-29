@@ -95,7 +95,7 @@
     </div>
   </fieldset>
 
-  <fieldset><legend>Window / level</legend>
+  <fieldset><legend>Window / level — non-contrast</legend>
     <select id="preset">
       <option value="300,100">Cardiac  W300 L100</option>
       <option value="600,100" selected>Mediastinum  W600 L100</option>
@@ -105,8 +105,18 @@
     </select>
     <label>width <span id="wv" class="kv" style="float:right"></span><input type="range" id="ww" min="50" max="1400" step="10"></label>
     <label>level <span id="lv" class="kv" style="float:right"></span><input type="range" id="wl" min="-200" max="800" step="5"></label>
-    <div class="kv"><span>CCTA level offset</span><b id="ctaoffv">+200</b></div>
-    <input type="range" id="ctaoff" min="0" max="500" step="10" value="200">
+  </fieldset>
+
+  <fieldset><legend>Window / level — CCTA</legend>
+    <select id="cpreset">
+      <option value="600,300" selected>Mediastinum  W600 L300</option>
+      <option value="800,300">Coronary  W800 L300</option>
+      <option value="1200,300">Wide  W1200 L300</option>
+      <option value="1000,400">Calcium  W1000 L400</option>
+      <option value="">Custom…</option>
+    </select>
+    <label>width <span id="cwv" class="kv" style="float:right"></span><input type="range" id="cw" min="50" max="2000" step="10"></label>
+    <label>level <span id="clv" class="kv" style="float:right"></span><input type="range" id="cl" min="-200" max="1200" step="5"></label>
   </fieldset>
 
   <fieldset><legend>Overlay &amp; view</legend>
@@ -166,8 +176,10 @@ async function boot(){
   MAN = await (await fetch('manifest.json')).json();
   try{ METRICS = await (await fetch('metrics.json')).json(); }catch(e){ METRICS=[]; }
   if(Q.get('panels')) active=Q.get('panels').split(',').filter(n=>n in LABEL);
-  if(Q.get('w')) $('#ww').value=Q.get('w');
-  if(Q.get('l')) $('#wl').value=Q.get('l');
+  if(Q.get('w'))  $('#ww').value=Q.get('w');
+  if(Q.get('l'))  $('#wl').value=Q.get('l');
+  if(Q.get('cw')) $('#cw').value=Q.get('cw');
+  if(Q.get('cl')) $('#cl').value=Q.get('cl');
   if(Q.get('mask')==='1') $('#mask').checked=true;
   if(Q.get('sa') in LABEL) swipe.a=Q.get('sa');
   if(Q.get('sb') in LABEL) swipe.b=Q.get('sb');
@@ -180,7 +192,8 @@ async function boot(){
   buildPanelToggles();
   buildSwipeControls();
   wireControls();
-  if(Q.get('w')||Q.get('l')) $('#preset').value='';
+  if(Q.get('w')||Q.get('l'))   $('#preset').value='';
+  if(Q.get('cw')||Q.get('cl')) $('#cpreset').value='';
   applyWL();
   const qi=MAN.cases.findIndex(c=>c.case===Q.get('case'));
   sel.value=qi>=0?qi:0;
@@ -191,6 +204,7 @@ function syncURL(){
   if(!cur) return;
   const q=new URLSearchParams({case:cur.case, z:z, panels:active.join(','),
                                w:$('#ww').value, l:$('#wl').value,
+                               cw:$('#cw').value, cl:$('#cl').value,
                                mask:$('#mask').checked?'1':'0',
                                sa:swipe.a, sb:swipe.b, sx:swipe.x});
   history.replaceState(null,'','?'+q);
@@ -350,8 +364,10 @@ function applySwipeX(){
 function filterFor(kind){
   if(kind==='diff') return 'none';                       // diff already baked at ±60
   const [lo,hi]=MAN.bake[kind];
-  let W=+$('#ww').value, L=+$('#wl').value;
-  if(kind==='ccta') L += +$('#ctaoff').value;
+  // contrast-filled lumen sits far above non-contrast tissue, so CCTA carries
+  // its own window/level rather than sharing the non-contrast one
+  const W = kind==='ccta' ? +$('#cw').value : +$('#ww').value;
+  const L = kind==='ccta' ? +$('#cl').value : +$('#wl').value;
   const a=(hi-lo)/W, d=(lo-L+W/2)/W;
   const B=2*d+a, C=B!==0? a/B : 1;
   let f=`contrast(${C.toFixed(4)}) brightness(${B.toFixed(4)})`;
@@ -476,8 +492,8 @@ function attachSwipeHandle(c){
 function step(d){ if(!cur) return; z=Math.min(cur.z1-1,Math.max(cur.z0,z+d)); render(); }
 
 function applyWL(){
-  $('#wv').textContent=$('#ww').value; $('#lv').textContent=$('#wl').value;
-  $('#ctaoffv').textContent='+'+$('#ctaoff').value;
+  $('#wv').textContent=$('#ww').value;  $('#lv').textContent=$('#wl').value;
+  $('#cwv').textContent=$('#cw').value; $('#clv').textContent=$('#cl').value;
   render();
 }
 
@@ -496,10 +512,14 @@ function fillMetrics(){
 }
 
 function wireControls(){
-  $('#ww').oninput=$('#wl').oninput=$('#ctaoff').oninput=()=>{ $('#preset').value=''; applyWL(); };
+  $('#ww').oninput=$('#wl').oninput=()=>{ $('#preset').value='';  applyWL(); };
+  $('#cw').oninput=$('#cl').oninput=()=>{ $('#cpreset').value=''; applyWL(); };
   $('#preset').onchange=e=>{ if(!e.target.value) return;
     const [w,l]=e.target.value.split(',').map(Number); $('#ww').value=w; $('#wl').value=l; applyWL(); };
-  if(!Q.get('w')&&!Q.get('l')) $('#preset').dispatchEvent(new Event('change'));
+  $('#cpreset').onchange=e=>{ if(!e.target.value) return;
+    const [w,l]=e.target.value.split(',').map(Number); $('#cw').value=w; $('#cl').value=l; applyWL(); };
+  if(!Q.get('w')&&!Q.get('l'))   $('#preset').dispatchEvent(new Event('change'));
+  if(!Q.get('cw')&&!Q.get('cl')) $('#cpreset').dispatchEvent(new Event('change'));
   $('#mask').onchange=$('#invert').onchange=render;
   $('#swipeA').onchange=$('#swipeB').onchange=async e=>{
     swipe[e.target.id==='swipeA'?'a':'b']=e.target.value;
@@ -510,7 +530,10 @@ function wireControls(){
   };
   $('#swipeX').oninput=e=>{ swipe.x=+e.target.value; applySwipeX(); syncURL(); };
   $('#fit').onclick=fitView;
-  $('#reset').onclick=()=>{ $('#preset').value='600,100'; $('#preset').dispatchEvent(new Event('change')); };
+  $('#reset').onclick=()=>{
+    $('#preset').value='600,100';  $('#preset').dispatchEvent(new Event('change'));
+    $('#cpreset').value='600,300'; $('#cpreset').dispatchEvent(new Event('change'));
+  };
   $('#z').oninput=e=>{ z=+e.target.value; render(); };
   $('#play').onclick=togglePlay;
   addEventListener('keydown',e=>{

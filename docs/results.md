@@ -4,6 +4,10 @@
 10 cases, computed by `scripts/30_evaluate.py` from `work/metrics.json`.
 Definitions and ROI construction are in [metrics.md](metrics.md).
 
+![Results](img/results.png)
+
+*Cohort means only — this chart carries no case identifiers and no anatomy.*
+
 ## Non-contrast (NCCT) — the scan these models are actually for
 
 | variant | noise SD (HU) | SNR | CNR | edge grad | FP ≥130 HU | HU bias |

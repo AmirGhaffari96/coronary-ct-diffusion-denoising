@@ -42,3 +42,7 @@ __pycache__/
 .DS_Store
 *.swp
 nohup.out
+
+# Viewer screenshots show patient anatomy — regenerate locally, never commit
+# while this repository is public. See docs/data-and-privacy.md.
+docs/img/viewer-*.png

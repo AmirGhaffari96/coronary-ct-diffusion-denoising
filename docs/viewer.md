@@ -73,10 +73,18 @@ registration — only the clip of the top layer moves.
 | space | cine loop |
 | hover | HU readout at the cursor |
 
-Window/level presets (cardiac, mediastinum, calcium, soft tissue) plus free
-width/level sliders. CCTA gets a separate **level offset** (default +200 HU)
-because contrast-filled lumen sits much higher than non-contrast tissue; one
-shared level would make one or the other unreadable.
+**Non-contrast and CCTA carry independent window/level.** Contrast-filled
+lumen sits far above non-contrast tissue, so a single shared window makes one
+or the other unreadable. Each gets its own preset menu and its own width and
+level sliders:
+
+| | presets | default |
+|---|---|---|
+| non-contrast | cardiac, mediastinum, calcium, soft tissue | W600 L100 |
+| CCTA | mediastinum, coronary, wide, calcium | W600 L300 |
+
+`reset W/L` restores both. Difference panels are unaffected — they are baked at
+a fixed ±60 HU and ignore both sets of sliders.
 
 The coronary mask overlays in red; grayscale can be inverted.
 

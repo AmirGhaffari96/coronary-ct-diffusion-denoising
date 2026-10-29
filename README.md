@@ -41,7 +41,11 @@ being removed rather than the vessel edges. Mean HU is preserved to within
 ~0.6 HU on NCCT (3.3 HU on CCTA), which is what makes calcium scoring still
 valid afterwards.
 
+![Results](docs/img/results.png)
+
 Full discussion and caveats: [docs/results.md](docs/results.md).
+
+![Pipeline](docs/img/pipeline.svg)
 
 ## Documentation
 
