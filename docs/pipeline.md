@@ -128,6 +128,11 @@ images; see [data-and-privacy.md](data-and-privacy.md).
 Bakes every slice of every panel to PNG at fixed window/level, so the browser
 viewer does not have to decode NIfTI.
 
+Also exports vCCTA v6 panels when a prediction exists for the case, looking in
+`vCCTA_V6/results/eval_final_test/nifti` (the 100 hold-out cases) and then
+`work/vccta/` (generated for the rest), and records each case's vCCTA_V6 split
+in the manifest so the viewer can badge it.
+
 **Writes** `viewer/slices/<case>/<panel>/*.png` (~420 MB) and
 `viewer/manifest.json`. See [viewer.md](viewer.md).
 

@@ -76,13 +76,14 @@
 <aside>
   <h1>Coronary denoising viewer</h1>
   <div class="sub">MIHEART · NCCT vs CoreDiff vs FoundDiff<br>
-    <span style="opacity:.75">build <b id="build">swipe-ccta-20261029-132531</b></span></div>
+    <span style="opacity:.75">build <b id="build">vccta-20261029-141017</b></span></div>
 
   <fieldset><legend>Case</legend>
     <select id="case"></select>
     <div class="row" style="margin-top:6px"><button id="prevCase">◀ prev</button><button id="nextCase">next ▶</button></div>
     <div class="kv" style="margin-top:8px"><span>slices</span><b id="mSlices">–</b></div>
     <div class="kv"><span>coronary z</span><b id="mZ">–</b></div>
+    <div class="kv"><span>vCCTA split</span><b id="mSplit">–</b></div>
   </fieldset>
 
   <fieldset><legend>Panels</legend>
@@ -155,6 +156,7 @@ const LABEL = {
   ncct_original:'NCCT · original', ncct_corediff:'NCCT · CoreDiff', ncct_founddiff:'NCCT · FoundDiff',
   ccta_original:'CCTA · original', ccta_corediff:'CCTA · CoreDiff', ccta_founddiff:'CCTA · FoundDiff',
   ncct_diff_corediff:'removed by CoreDiff', ncct_diff_founddiff:'removed by FoundDiff',
+  vccta:'vCCTA v6', vccta_tex:'vCCTA v6 · textured',
   swipe:'swipe · before / after'
 };
 /* Panels that can sit on either side of the swipe divider — everything except
@@ -202,6 +204,24 @@ async function boot(){
   const qi=MAN.cases.findIndex(c=>c.case===Q.get('case'));
   sel.value=qi>=0?qi:0;
   loadCase(qi>=0?qi:0);
+}
+
+/* Which vCCTA_V6 split this case was in. On a training case the model was
+   fitted on the very scan being shown, so the vCCTA panels show memorisation
+   rather than performance — worth seeing at a glance, beside the image. */
+const SPLIT_STYLE = {
+  test:  ['held out', '#4ade80'],
+  val:   ['validation', '#4da3ff'],
+  train: ['TRAINING — model saw this case', '#ff8a3b'],
+};
+function setSplitBadge(sp){
+  const el=$('#mSplit');
+  const [txt,col] = SPLIT_STYLE[sp] || [sp || 'unknown', 'var(--dim)'];
+  el.textContent = txt;
+  el.style.color = col;
+  el.title = sp==='train'
+    ? 'This case was in the vCCTA_V6 training set; its vCCTA panels are not held-out performance.'
+    : `vCCTA_V6 split: ${sp||'unknown'}`;
 }
 
 function syncURL(){
@@ -284,6 +304,7 @@ async function loadCase(i){
   $('#hCase').textContent=cur.case;
   $('#mSlices').textContent=`${cur.z1-cur.z0}  (z ${cur.z0}–${cur.z1-1})`;
   $('#mZ').textContent=`${cur.z_min}–${cur.z_max}`;
+  setSplitBadge(cur.vccta_split);
   const zr=$('#z'); zr.min=cur.z0; zr.max=cur.z1-1; zr.value=z;
   cache.clear();
   buildGrid(); fillMetrics();
@@ -379,7 +400,13 @@ function filterFor(kind){
   return f;
 }
 
-function kindOf(name){ return name.startsWith('ncct_diff')?'diff': name.startsWith('ccta')?'ccta':'ncct'; }
+function kindOf(name){
+  if(name.startsWith('ncct_diff')) return 'diff';
+  // vCCTA imitates contrast CT, so it windows with CCTA — and note 'vccta'
+  // does not start with 'ccta', so this test must precede the next one.
+  if(name.startsWith('vccta')) return 'ccta';
+  return name.startsWith('ccta') ? 'ccta' : 'ncct';
+}
 /* 'swipe' is a composite panel, never an image key, so it never reaches
    kindOf/url/key — buildGrid expands it into its two layers first. */
 

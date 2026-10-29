@@ -1,9 +1,11 @@
-build: swipe-ccta-20261029-132531
+build: vccta-20261029-141017
 host:  wonko.via.cornell.edu
 path:  /mnt/raid2/amirg/Diff Models/viewer
 served from port 8712
 
 features in this build:
-  - swipe panel (panel #9, "swipe - before / after")
+  - swipe panel (panel "swipe - before / after")
   - independent CCTA window/level
   - CCTA CoreDiff + CCTA FoundDiff panels
+  - vCCTA v6 and vCCTA v6 textured panels
+  - per-case vCCTA split badge (train / test / not in split)

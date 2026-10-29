@@ -32,6 +32,7 @@ Nine panels, all toggled from the single **Panels** menu in the sidebar:
 | `ncct_original` / `ncct_corediff` / `ncct_founddiff` | the non-contrast scan, before and after each model |
 | `ccta_original` / `ccta_corediff` / `ccta_founddiff` | the registered CCTA, same |
 | `ncct_diff_corediff` / `ncct_diff_founddiff` | original − denoised, i.e. **what the model removed** |
+| `vccta` / `vccta_tex` | vCCTA v6 — synthetic contrast CT predicted from the non-contrast scan, plain and with CCTA-like noise grain |
 | `swipe` | two panels in one cell, split by a draggable divider (see below) |
 
 The default set is the three NCCT panels plus `swipe`. CCTA panels are
@@ -41,6 +42,33 @@ for, so it earns the default real estate.
 The difference panels are the most diagnostic of the set. A good denoiser's
 difference image should look like structureless noise. Visible vessel outlines
 in it mean anatomy is being removed, not noise.
+
+## vCCTA v6 panels, and the split badge
+
+`vccta` and `vccta_tex` come from a different model entirely —
+[vCCTA_V6](/mnt/raid2/amirg/vCCTA_V6), which **synthesises** contrast CT from
+the non-contrast scan rather than denoising it. They are included so the two
+approaches can be compared on the same slice: CoreDiff and FoundDiff clean up
+the scan you have, vCCTA invents the scan you don't.
+
+Both window with the CCTA sliders, since they imitate that HU distribution.
+
+**The Case box shows which vCCTA_V6 split each case was in, and this matters
+more than it looks:**
+
+| badge | meaning |
+|---|---|
+| `held out` (green) | genuine held-out performance |
+| `validation` (blue) | used for model selection |
+| `TRAINING — model saw this case` (orange) | the model was fitted on this scan |
+| `not in split` (grey) | excluded from vCCTA_V6, often by the registration-score cut |
+
+Of the 10 cases here only **two** are held out. On a training case the vCCTA
+panels show memorisation, not performance, and must not be read as evidence —
+CoreDiff and FoundDiff never saw any of this data, so putting them side by side
+on a training case is not a like-for-like comparison. The badge sits beside the
+case selector rather than inside a panel so it stays visible whichever panels
+are on.
 
 ## Before / after swipe
 
