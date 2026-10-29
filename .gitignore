@@ -1,0 +1,44 @@
+# ---------------------------------------------------------------------------
+# NOTHING PATIENT-DERIVED IS COMMITTED TO THIS REPOSITORY.
+#
+# Not the images, not the metrics, not the case identifiers. Everything below
+# regenerates from the pipeline against a local copy of the source data.
+# See docs/data-and-privacy.md.
+# ---------------------------------------------------------------------------
+
+# Everything under work/ is patient-derived:
+#   outputs/  denoised NIfTI volumes (~7.0 GB)
+#   figures/  rendered axial CT slices
+#   *.json    metrics and case lists keyed by MIHEART accession ID
+work/
+
+# Exported viewer slices (~420 MB), and the manifests that index them by case ID
+viewer/slices/
+viewer/manifest.json
+viewer/metrics.json
+
+# Run logs name each case as it is processed
+logs/
+
+# ---------------------------------------------------------------------------
+# Large third-party artifacts — fetched, not vendored. See docs/setup.md.
+# ---------------------------------------------------------------------------
+
+# Model checkpoints (~2.4 GB), released by the original authors
+weights/
+
+# Python virtualenv (~279 MB) — rebuild from requirements.txt
+envs/
+
+# Upstream model source — cloned at pinned commits by scripts/clone_upstream.sh
+repos/
+
+# ---------------------------------------------------------------------------
+# Routine noise
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+*.swp
+nohup.out

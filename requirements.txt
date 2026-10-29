@@ -1,0 +1,29 @@
+# Versions this project was actually run with (Python 3.11.15, CUDA 13.2 driver).
+# Recorded from the working envs/diffct venv — see docs/setup.md.
+#
+# torch/torchvision: install the CUDA wheel matching your driver from
+#   https://download.pytorch.org/whl/cu128
+# not the default PyPI build.
+#
+# mamba-ssm is the fragile one: FoundDiff's UNet uses Mamba blocks, and this
+# package compiles CUDA extensions against the torch you already have, so
+# install torch first and only then mamba-ssm.
+
+torch==2.8.0+cu128
+torchvision==0.23.0+cu128
+
+numpy==2.4.4
+scipy==1.17.1
+nibabel==5.4.2
+scikit-image==0.26.0
+einops==0.8.2
+tqdm==4.70.0
+Pillow==12.2.0
+
+# FoundDiff
+mamba-ssm==2.3.2.post1
+open_clip_torch==3.3.0
+
+# figures / ad-hoc analysis
+matplotlib==3.11.1
+pandas==2.3.3

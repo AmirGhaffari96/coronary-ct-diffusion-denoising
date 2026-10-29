@@ -1,0 +1,522 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>MIHEART coronary denoising viewer</title>
+<style>
+  :root{
+    --bg:#0d0f12; --panel:#15181d; --line:#262b33; --fg:#e6e9ee; --dim:#8b94a3;
+    --accent:#4da3ff; --warn:#ff8a3b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--fg);font:13px/1.4 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+       display:grid;grid-template-columns:260px 1fr;overflow:hidden}
+
+  aside{background:var(--panel);border-right:1px solid var(--line);padding:14px;overflow-y:auto;height:100vh}
+  aside h1{font-size:14px;margin:0 0 2px;letter-spacing:.02em}
+  aside .sub{color:var(--dim);font-size:11px;margin-bottom:14px}
+  fieldset{border:1px solid var(--line);border-radius:8px;padding:10px;margin:0 0 12px}
+  legend{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.08em;padding:0 4px}
+  label{display:block;margin:6px 0;font-size:12px}
+  select,button,input[type=number]{background:#1d2128;color:var(--fg);border:1px solid var(--line);
+       border-radius:6px;padding:5px 8px;font:inherit;width:100%}
+  button{cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  .row{display:flex;gap:6px}
+  .row button{width:auto;flex:1}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .chk{display:flex;align-items:center;gap:7px;margin:5px 0;font-size:12px;cursor:pointer}
+  .chk input{accent-color:var(--accent);width:auto}
+  .kv{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin:2px 0}
+  .kv b{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+  table{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
+  th,td{padding:3px 4px;text-align:right;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--dim);font-weight:500}
+  .good{color:#4ade80}
+
+  main{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+  header{display:flex;align-items:center;gap:14px;padding:8px 14px;border-bottom:1px solid var(--line);
+         background:var(--panel);flex:0 0 auto}
+  header .title{font-weight:600}
+  header .hint{color:var(--dim);font-size:11px;margin-left:auto}
+  #grid{flex:1;display:grid;gap:6px;padding:6px;overflow:hidden;min-height:0}
+  .cell{position:relative;background:#000;border:1px solid var(--line);border-radius:6px;overflow:hidden;min-height:0}
+  .cell .stage{position:absolute;inset:0}
+  .cell canvas{position:absolute;top:0;left:0;image-rendering:pixelated;transform-origin:0 0}
+  .cell .tag{position:absolute;top:6px;left:8px;font-size:11px;font-weight:600;letter-spacing:.03em;
+             background:rgba(0,0,0,.55);padding:2px 7px;border-radius:4px;pointer-events:none;z-index:3}
+  .cell .hu{position:absolute;bottom:6px;left:8px;font-size:11px;color:var(--dim);
+            background:rgba(0,0,0,.55);padding:2px 7px;border-radius:4px;pointer-events:none;z-index:3;
+            font-variant-numeric:tabular-nums}
+  footer{flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:8px 14px;border-top:1px solid var(--line);
+         background:var(--panel)}
+  footer input[type=range]{flex:1}
+  #zlabel{font-variant-numeric:tabular-nums;min-width:130px;color:var(--dim)}
+  #loading{position:fixed;inset:0;background:rgba(13,15,18,.92);display:none;align-items:center;
+           justify-content:center;flex-direction:column;gap:12px;z-index:50}
+  #bar{width:280px;height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+  #bar div{height:100%;width:0;background:var(--accent)}
+
+  /* ---- before/after swipe compare ----
+     Both layers fill the cell and share the same pan/zoom transform, so they
+     stay registered; the "after" layer is revealed by clipping it at the
+     divider rather than by resizing anything. */
+  .cell .stage.B{z-index:2}
+  .cell .tag.right{left:auto;right:8px}
+  .swipeHandle{position:absolute;top:0;bottom:0;width:3px;margin-left:-1px;
+               background:var(--accent);z-index:5;cursor:ew-resize;touch-action:none}
+  .swipeHandle::before{content:'';position:absolute;left:-14px;right:-14px;top:0;bottom:0}
+  .swipeHandle .grip{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+       width:30px;height:30px;border-radius:50%;background:#fff;color:#111;
+       display:flex;align-items:center;justify-content:center;gap:1px;
+       font-size:11px;font-weight:700;box-shadow:0 2px 10px rgba(0,0,0,.65)}
+</style>
+
+<aside>
+  <h1>Coronary denoising viewer</h1>
+  <div class="sub">MIHEART · NCCT vs CoreDiff vs FoundDiff</div>
+
+  <fieldset><legend>Case</legend>
+    <select id="case"></select>
+    <div class="row" style="margin-top:6px"><button id="prevCase">◀ prev</button><button id="nextCase">next ▶</button></div>
+    <div class="kv" style="margin-top:8px"><span>slices</span><b id="mSlices">–</b></div>
+    <div class="kv"><span>coronary z</span><b id="mZ">–</b></div>
+  </fieldset>
+
+  <fieldset><legend>Before / after swipe</legend>
+    <label class="chk"><input type="checkbox" id="swipeOn" checked> swipe compare</label>
+    <label>before <select id="swipeA"></select></label>
+    <label>after <select id="swipeB"></select></label>
+    <div class="kv"><span>divider</span><b id="swipeXv">50%</b></div>
+    <input type="range" id="swipeX" min="0" max="100" step="0.5" value="50">
+    <div class="sub" style="margin:8px 0 0">Drag the blue divider in the image.
+      Uncheck for the multi-panel grid.</div>
+  </fieldset>
+
+  <fieldset><legend>Panels <span class="kv" style="display:inline">(grid mode)</span></legend>
+    <div id="panels"></div></fieldset>
+
+  <fieldset><legend>Window / level</legend>
+    <select id="preset">
+      <option value="300,100">Cardiac  W300 L100</option>
+      <option value="600,100" selected>Mediastinum  W600 L100</option>
+      <option value="1000,300">Calcium  W1000 L300</option>
+      <option value="400,50">Soft tissue  W400 L50</option>
+      <option value="">Custom…</option>
+    </select>
+    <label>width <span id="wv" class="kv" style="float:right"></span><input type="range" id="ww" min="50" max="1400" step="10"></label>
+    <label>level <span id="lv" class="kv" style="float:right"></span><input type="range" id="wl" min="-200" max="800" step="5"></label>
+    <div class="kv"><span>CCTA level offset</span><b id="ctaoffv">+200</b></div>
+    <input type="range" id="ctaoff" min="0" max="500" step="10" value="200">
+  </fieldset>
+
+  <fieldset><legend>Overlay &amp; view</legend>
+    <label class="chk"><input type="checkbox" id="mask"> coronary mask</label>
+    <label class="chk"><input type="checkbox" id="invert"> invert grayscale</label>
+    <div class="row"><button id="fit">fit</button><button id="reset">reset W/L</button></div>
+  </fieldset>
+
+  <fieldset><legend>Metrics (this case)</legend>
+    <div class="sub" style="margin:0 0 6px">noise SD / SNR / CNR in HU ROIs</div>
+    <table id="metrics"><tbody></tbody></table>
+  </fieldset>
+</aside>
+
+<main>
+  <header>
+    <span class="title" id="hCase">–</span>
+    <span class="hint">wheel = scroll slices · drag = pan · ctrl+wheel = zoom · ←/→ slices · space = cine · drag the blue divider to wipe</span>
+  </header>
+  <div id="grid"></div>
+  <footer>
+    <button id="play" style="width:auto">▶</button>
+    <input type="range" id="z" min="0" max="1" value="0">
+    <span id="zlabel">–</span>
+  </footer>
+</main>
+
+<div id="loading"><div id="msg">loading…</div><div id="bar"><div></div></div></div>
+
+<script>
+const LABEL = {
+  ncct_original:'NCCT · original', ncct_corediff:'NCCT · CoreDiff', ncct_founddiff:'NCCT · FoundDiff',
+  ccta_original:'CCTA · original', ccta_corediff:'CCTA · CoreDiff', ccta_founddiff:'CCTA · FoundDiff',
+  ncct_diff_corediff:'removed by CoreDiff', ncct_diff_founddiff:'removed by FoundDiff'
+};
+const DEFAULT_ON = ['ncct_original','ncct_corediff','ncct_founddiff','ccta_original'];
+
+let MAN=null, METRICS=null, cur=null, z=0, cells=[], active=[...DEFAULT_ON];
+/* swipe compare: one cell, two registered layers, B clipped at x% */
+let swipe={on:true, a:'ncct_original', b:'ncct_founddiff', x:50};
+let cache=new Map();            // key -> HTMLImageElement
+let view={scale:1,tx:0,ty:0};
+let playing=null;
+
+const $=s=>document.querySelector(s);
+const gridEl=$('#grid');
+
+/* URL state: ?case=<CASE-ID>&z=181&panels=a,b&mask=1&w=600&l=100
+   so a particular comparison can be linked to or reopened later. */
+const Q=new URLSearchParams(location.search);
+
+async function boot(){
+  MAN = await (await fetch('manifest.json')).json();
+  try{ METRICS = await (await fetch('metrics.json')).json(); }catch(e){ METRICS=[]; }
+  if(Q.get('panels')) active=Q.get('panels').split(',').filter(n=>n in LABEL);
+  if(Q.get('w')) $('#ww').value=Q.get('w');
+  if(Q.get('l')) $('#wl').value=Q.get('l');
+  if(Q.get('mask')==='1') $('#mask').checked=true;
+  if(Q.has('swipe')) swipe.on = Q.get('swipe')==='1';
+  if(Q.get('sa') in LABEL) swipe.a=Q.get('sa');
+  if(Q.get('sb') in LABEL) swipe.b=Q.get('sb');
+  if(Q.get('sx')!==null && !isNaN(+Q.get('sx'))) swipe.x=Math.min(100,Math.max(0,+Q.get('sx')));
+  const sel=$('#case');
+  MAN.cases.forEach((c,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=c.case; sel.appendChild(o); });
+  sel.onchange=()=>loadCase(+sel.value);
+  $('#prevCase').onclick=()=>{ sel.value=Math.max(0,+sel.value-1); loadCase(+sel.value); };
+  $('#nextCase').onclick=()=>{ sel.value=Math.min(MAN.cases.length-1,+sel.value+1); loadCase(+sel.value); };
+  buildPanelToggles();
+  buildSwipeControls();
+  wireControls();
+  if(Q.get('w')||Q.get('l')) $('#preset').value='';
+  applyWL();
+  const qi=MAN.cases.findIndex(c=>c.case===Q.get('case'));
+  sel.value=qi>=0?qi:0;
+  loadCase(qi>=0?qi:0);
+}
+
+function syncURL(){
+  if(!cur) return;
+  const q=new URLSearchParams({case:cur.case, z:z, panels:active.join(','),
+                               w:$('#ww').value, l:$('#wl').value,
+                               mask:$('#mask').checked?'1':'0',
+                               swipe:swipe.on?'1':'0', sa:swipe.a, sb:swipe.b,
+                               sx:swipe.x});
+  history.replaceState(null,'','?'+q);
+}
+
+function buildPanelToggles(){
+  const host=$('#panels'); host.innerHTML='';
+  Object.keys(LABEL).forEach(name=>{
+    const l=document.createElement('label'); l.className='chk';
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=active.includes(name);
+    cb.onchange=()=>{ active = Object.keys(LABEL).filter(n=>host.querySelector(`input[data-n="${n}"]`).checked);
+                      buildGrid(); render(); };
+    cb.dataset.n=name;
+    l.appendChild(cb); l.appendChild(document.createTextNode(LABEL[name])); host.appendChild(l);
+  });
+}
+
+function buildSwipeControls(){
+  for(const [sel,val] of [['#swipeA',swipe.a],['#swipeB',swipe.b]]){
+    const el=$(sel); el.innerHTML='';
+    Object.keys(LABEL).forEach(n=>{
+      const o=document.createElement('option'); o.value=n; o.textContent=LABEL[n]; el.appendChild(o);
+    });
+    el.value=val;
+  }
+  $('#swipeOn').checked=swipe.on;
+  $('#swipeX').value=swipe.x;
+  $('#swipeXv').textContent=swipe.x+'%';
+}
+
+/* Which panels the current layout actually needs decoded. In swipe mode the
+   grid shows two panels regardless of the Panels checkboxes, so preloading
+   `active` would fetch the wrong set. */
+function panelsNeeded(){
+  return swipe.on ? [...new Set([swipe.a, swipe.b])] : active;
+}
+
+function key(caseName,panel,zz){ return `${caseName}/${panel}/${String(zz).padStart(4,'0')}`; }
+function url(caseName,panel,zz){
+  const ext = panel==='mask' ? 'png':'jpg';
+  return `slices/${caseName}/${panel}/${String(zz).padStart(4,'0')}.${ext}`;
+}
+
+function loadImg(caseName,panel,zz){
+  const k=key(caseName,panel,zz);
+  if(cache.has(k)) return Promise.resolve(cache.get(k));
+  return new Promise(res=>{
+    const im=new Image();
+    im.onload=()=>{ cache.set(k,im); res(im); };
+    im.onerror=()=>res(null);
+    im.src=url(caseName,panel,zz);
+  });
+}
+
+async function loadCase(i){
+  cur=MAN.cases[i];
+  z=Math.round((cur.z_min+cur.z_max)/2);
+  const qz=+Q.get('z'); if(qz>=cur.z0&&qz<cur.z1){ z=qz; Q.delete('z'); }
+  $('#hCase').textContent=cur.case;
+  $('#mSlices').textContent=`${cur.z1-cur.z0}  (z ${cur.z0}–${cur.z1-1})`;
+  $('#mZ').textContent=`${cur.z_min}–${cur.z_max}`;
+  const zr=$('#z'); zr.min=cur.z0; zr.max=cur.z1-1; zr.value=z;
+  cache.clear();
+  buildGrid(); fillMetrics();
+  await preload();
+  view={scale:1,tx:0,ty:0}; fitView();
+  render();
+}
+
+async function preload(){
+  const box=$('#loading'), bar=$('#bar div');
+  const panels=[...panelsNeeded(),'mask'];
+  const jobs=[];
+  for(const p of panels) for(let zz=cur.z0; zz<cur.z1; zz++) jobs.push([p,zz]);
+  box.style.display='flex'; $('#msg').textContent=`loading ${cur.case} — ${jobs.length} images`;
+  let done=0, CONC=24, idx=0;
+  await Promise.all(Array.from({length:CONC},async()=>{
+    while(idx<jobs.length){
+      const [p,zz]=jobs[idx++];
+      await loadImg(cur.case,p,zz);
+      if(++done%20===0) bar.style.width=(100*done/jobs.length)+'%';
+    }
+  }));
+  box.style.display='none'; bar.style.width='0';
+}
+
+function buildGrid(){
+  gridEl.innerHTML=''; cells=[];
+  if(swipe.on){ buildSwipeCell(); }
+  else{
+    const n=active.length||1;
+    const cols=n<=1?1:n<=2?2:n<=4?2:3;
+    const rows=Math.ceil(n/cols);
+    gridEl.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+    gridEl.style.gridTemplateRows=`repeat(${rows},1fr)`;
+    active.forEach(name=>{
+      const d=document.createElement('div'); d.className='cell';
+      d.innerHTML=`<div class="stage"><canvas></canvas></div>
+                   <canvas class="ov"></canvas>
+                   <div class="tag">${LABEL[name]}</div><div class="hu"></div>`;
+      gridEl.appendChild(d);
+      cells.push({el:d, hu:d.querySelector('.hu'), ov:d.querySelector('.ov'),
+                  layers:[{name, cv:d.querySelector('.stage canvas')}]});
+    });
+  }
+  attachInteractions();
+  requestAnimationFrame(fitView);
+}
+
+/* Single full-width cell holding "before" under "after". Both canvases carry
+   the identical pan/zoom transform, so the two scans stay pixel-registered;
+   only the clip of the top stage moves when the divider is dragged. */
+function buildSwipeCell(){
+  gridEl.style.gridTemplateColumns='1fr';
+  gridEl.style.gridTemplateRows='1fr';
+  const d=document.createElement('div'); d.className='cell swipe';
+  d.innerHTML=`<div class="stage A"><canvas></canvas></div>
+               <div class="stage B"><canvas></canvas></div>
+               <canvas class="ov"></canvas>
+               <div class="tag">${LABEL[swipe.a]}</div>
+               <div class="tag right">${LABEL[swipe.b]}</div>
+               <div class="hu"></div>
+               <div class="swipeHandle"><div class="grip">\u25c0\u25b6</div></div>`;
+  gridEl.appendChild(d);
+  cells.push({el:d, hu:d.querySelector('.hu'), ov:d.querySelector('.ov'),
+              swipe:true, stageB:d.querySelector('.stage.B'),
+              handle:d.querySelector('.swipeHandle'),
+              layers:[{name:swipe.a, cv:d.querySelector('.stage.A canvas')},
+                      {name:swipe.b, cv:d.querySelector('.stage.B canvas')}]});
+  applySwipeX();
+}
+
+function applySwipeX(){
+  for(const c of cells){
+    if(!c.swipe) continue;
+    c.stageB.style.clipPath=`inset(0 0 0 ${swipe.x}%)`;
+    c.handle.style.left=swipe.x+'%';
+  }
+  $('#swipeXv').textContent=(+swipe.x).toFixed(0)+'%';
+}
+
+/* ---- window/level as an exact linear remap of the baked 8-bit range ----
+   baked : v = (HU-lo)/(hi-lo)          desired : out = (HU-(L-W/2))/W
+   out = a*v + d  with a=(hi-lo)/W, d=(lo-L+W/2)/W
+   CSS contrast(C) then brightness(B): out = B*((v-.5)*C+.5)
+   => B = 2d+a , C = a/B                                                    */
+function filterFor(kind){
+  if(kind==='diff') return 'none';                       // diff already baked at ±60
+  const [lo,hi]=MAN.bake[kind];
+  let W=+$('#ww').value, L=+$('#wl').value;
+  if(kind==='ccta') L += +$('#ctaoff').value;
+  const a=(hi-lo)/W, d=(lo-L+W/2)/W;
+  const B=2*d+a, C=B!==0? a/B : 1;
+  let f=`contrast(${C.toFixed(4)}) brightness(${B.toFixed(4)})`;
+  if($('#invert').checked) f+=' invert(1)';
+  return f;
+}
+
+function kindOf(name){ return name.startsWith('ncct_diff')?'diff': name.startsWith('ccta')?'ccta':'ncct'; }
+
+function render(){
+  if(!cur) return;
+  $('#z').value=z;
+  $('#zlabel').textContent=`z ${z}  ·  ${z-cur.z0+1}/${cur.z1-cur.z0}`;
+  syncURL();
+  const showMask=$('#mask').checked;
+  for(const c of cells){
+    for(const ly of c.layers){
+      const im=cache.get(key(cur.case,ly.name,z));
+      const cv=ly.cv, ctx=cv.getContext('2d');
+      if(im){ if(cv.width!==im.width){cv.width=im.width;cv.height=im.height;}
+              ctx.clearRect(0,0,cv.width,cv.height); ctx.drawImage(im,0,0); }
+      cv.style.filter=filterFor(kindOf(ly.name));
+    }
+    const mk=showMask? cache.get(key(cur.case,'mask',z)) : null;
+    const ov=c.ov, octx=ov.getContext('2d');
+    if(mk){ if(ov.width!==mk.width){ov.width=mk.width;ov.height=mk.height;}
+            octx.clearRect(0,0,ov.width,ov.height); octx.drawImage(mk,0,0); ov.style.display='block'; }
+    else ov.style.display='none';
+  }
+  applyTransform();
+}
+
+function applyTransform(){
+  const t=`translate(${view.tx}px,${view.ty}px) scale(${view.scale})`;
+  for(const c of cells){
+    for(const ly of c.layers) ly.cv.style.transform=t;
+    c.ov.style.transform=t;
+  }
+}
+
+function fitView(){
+  if(!cells.length) return;
+  const r=cells[0].el.getBoundingClientRect();
+  const s=Math.min(r.width,r.height)/512;
+  view.scale=s; view.tx=(r.width-512*s)/2; view.ty=(r.height-512*s)/2;
+  applyTransform();
+}
+
+function attachInteractions(){
+  for(const c of cells){
+    const el=c.el;
+    if(c.swipe) attachSwipeHandle(c);
+    el.addEventListener('wheel',e=>{
+      e.preventDefault();
+      if(e.ctrlKey||e.metaKey){
+        const r=el.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+        const k=Math.exp(-e.deltaY*0.0015);
+        view.tx=mx-(mx-view.tx)*k; view.ty=my-(my-view.ty)*k; view.scale*=k;
+        applyTransform();
+      } else { step(e.deltaY>0?1:-1); }
+    },{passive:false});
+
+    let drag=null;
+    el.addEventListener('pointerdown',e=>{ drag={x:e.clientX,y:e.clientY,tx:view.tx,ty:view.ty};
+                                           el.setPointerCapture(e.pointerId); });
+    el.addEventListener('pointermove',e=>{
+      const r=el.getBoundingClientRect();
+      const px=Math.floor(((e.clientX-r.left)-view.tx)/view.scale);
+      const py=Math.floor(((e.clientY-r.top)-view.ty)/view.scale);
+      readHU(c,layerAt(c,e.clientX-r.left,r.width),px,py);
+      if(!drag) return;
+      view.tx=drag.tx+(e.clientX-drag.x); view.ty=drag.ty+(e.clientY-drag.y); applyTransform();
+    });
+    el.addEventListener('pointerup',e=>{ drag=null; el.releasePointerCapture(e.pointerId); });
+    el.addEventListener('pointerleave',()=>{ drag=null; c.hu.textContent=''; });
+  }
+}
+
+/* In swipe mode the HU readout must come from whichever side of the divider
+   the cursor is actually over, otherwise it reports the hidden layer. */
+function layerAt(c,cx,width){
+  if(!c.swipe) return c.layers[0];
+  return (100*cx/width) >= swipe.x ? c.layers[1] : c.layers[0];
+}
+
+function readHU(c,ly,x,y){
+  if(!ly||x<0||y<0||x>=512||y>=512){ c.hu.textContent=''; return; }
+  const ctx=ly.cv.getContext('2d',{willReadFrequently:true});
+  const v=ctx.getImageData(x,y,1,1).data[0];
+  const [lo,hi]=MAN.bake[kindOf(ly.name)];
+  const hu=lo+v/255*(hi-lo);
+  c.hu.textContent=`${LABEL[ly.name]}  (${x}, ${y})  ≈ ${hu.toFixed(0)} HU`;
+}
+
+function attachSwipeHandle(c){
+  let dragging=false;
+  const move=e=>{
+    if(!dragging) return;
+    const r=c.el.getBoundingClientRect();
+    swipe.x=Math.min(100,Math.max(0,100*(e.clientX-r.left)/r.width));
+    $('#swipeX').value=swipe.x;
+    applySwipeX(); syncURL();
+  };
+  // stopPropagation so grabbing the divider does not also start a pan
+  c.handle.addEventListener('pointerdown',e=>{
+    e.stopPropagation(); e.preventDefault();
+    dragging=true; c.handle.setPointerCapture(e.pointerId);
+  });
+  c.handle.addEventListener('pointermove',e=>{ e.stopPropagation(); move(e); });
+  c.handle.addEventListener('pointerup',e=>{
+    e.stopPropagation(); dragging=false; c.handle.releasePointerCapture(e.pointerId);
+  });
+  c.handle.addEventListener('wheel',e=>e.stopPropagation());
+  // double-click recentres
+  c.handle.addEventListener('dblclick',e=>{
+    e.stopPropagation(); swipe.x=50; $('#swipeX').value=50; applySwipeX(); syncURL();
+  });
+}
+
+function step(d){ if(!cur) return; z=Math.min(cur.z1-1,Math.max(cur.z0,z+d)); render(); }
+
+function applyWL(){
+  $('#wv').textContent=$('#ww').value; $('#lv').textContent=$('#wl').value;
+  $('#ctaoffv').textContent='+'+$('#ctaoff').value;
+  render();
+}
+
+function fillMetrics(){
+  const tb=$('#metrics tbody'); tb.innerHTML='';
+  const rows=(METRICS||[]).filter(r=>r.case===cur.case&&r.modality==='ncct');
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="4" style="color:var(--dim)">n/a</td></tr>'; return; }
+  tb.innerHTML='<tr><th>NCCT</th><th>SD</th><th>SNR</th><th>CNR</th></tr>';
+  const base=rows.find(r=>r.variant==='original');
+  for(const r of rows){
+    const better=base&&r.variant!=='original'&&r.noise_sd<base.noise_sd?'good':'';
+    tb.insertAdjacentHTML('beforeend',
+      `<tr><td>${r.variant}</td><td class="${better}">${r.noise_sd.toFixed(1)}</td>`+
+      `<td>${r.snr.toFixed(1)}</td><td>${r.cnr.toFixed(1)}</td></tr>`);
+  }
+}
+
+function wireControls(){
+  $('#ww').oninput=$('#wl').oninput=$('#ctaoff').oninput=()=>{ $('#preset').value=''; applyWL(); };
+  $('#preset').onchange=e=>{ if(!e.target.value) return;
+    const [w,l]=e.target.value.split(',').map(Number); $('#ww').value=w; $('#wl').value=l; applyWL(); };
+  if(!Q.get('w')&&!Q.get('l')) $('#preset').dispatchEvent(new Event('change'));
+  $('#mask').onchange=$('#invert').onchange=render;
+  $('#swipeOn').onchange=async e=>{
+    swipe.on=e.target.checked;
+    buildGrid(); fillMetrics();
+    await preload();                       // swipe may need panels not yet decoded
+    fitView(); render();
+  };
+  $('#swipeA').onchange=$('#swipeB').onchange=async e=>{
+    swipe[e.target.id==='swipeA'?'a':'b']=e.target.value;
+    if(!swipe.on){ syncURL(); return; }
+    buildGrid(); await preload(); fitView(); render();
+  };
+  $('#swipeX').oninput=e=>{ swipe.x=+e.target.value; applySwipeX(); syncURL(); };
+  $('#fit').onclick=fitView;
+  $('#reset').onclick=()=>{ $('#preset').value='600,100'; $('#preset').dispatchEvent(new Event('change')); };
+  $('#z').oninput=e=>{ z=+e.target.value; render(); };
+  $('#play').onclick=togglePlay;
+  addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key==='ArrowDown'){ step(1); e.preventDefault(); }
+    if(e.key==='ArrowLeft' ||e.key==='ArrowUp'){ step(-1); e.preventDefault(); }
+    if(e.key===' '){ togglePlay(); e.preventDefault(); }
+  });
+  addEventListener('resize',fitView);
+}
+
+function togglePlay(){
+  if(playing){ clearInterval(playing); playing=null; $('#play').textContent='▶'; return; }
+  $('#play').textContent='❚❚';
+  playing=setInterval(()=>{ z = z+1>=cur.z1 ? cur.z0 : z+1; render(); },60);
+}
+
+boot();
+</script>
