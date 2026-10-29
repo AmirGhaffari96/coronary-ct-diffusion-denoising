@@ -1,9 +1,10 @@
 # ---------------------------------------------------------------------------
-# NOTHING PATIENT-DERIVED IS COMMITTED TO THIS REPOSITORY.
+# THIS REPOSITORY IS PUBLIC. NOTHING PATIENT-DERIVED GOES IN IT. EVER.
 #
-# Not the images, not the metrics, not the case identifiers. Everything below
-# regenerates from the pipeline against a local copy of the source data.
-# See docs/data-and-privacy.md.
+# Not the images, not the metrics, not the case identifiers, not screenshots
+# of the viewer. This is a standing rule, not a temporary state: everything
+# below regenerates from the pipeline against a local copy of the source data,
+# so excluding it costs nothing. See docs/data-and-privacy.md.
 # ---------------------------------------------------------------------------
 
 # Everything under work/ is patient-derived:
@@ -43,6 +44,9 @@ __pycache__/
 *.swp
 nohup.out
 
-# Viewer screenshots show patient anatomy — regenerate locally, never commit
-# while this repository is public. See docs/data-and-privacy.md.
+# Viewer screenshots show patient anatomy. Only figures that contain no
+# patient material belong in docs/img/ — currently pipeline.svg and
+# results.png (cohort means, no identifiers).
 docs/img/viewer-*.png
+docs/img/*screenshot*
+docs/img/*MIHEART*

@@ -1,8 +1,16 @@
 # Data and privacy
 
-This project operates on identifiable patient imaging. **No patient-derived
-material is committed to this repository** — not images, not metrics, not case
-identifiers.
+This project operates on identifiable patient imaging.
+
+**This repository is public, and no patient-derived material is committed to
+it** — not images, not metrics, not case identifiers, not viewer screenshots.
+That is a standing policy, not a description of the current state: the
+exclusion is permanent and `.gitignore` enforces it.
+
+The reasoning is simple. Everything excluded regenerates from the pipeline in
+minutes, so keeping it out costs nothing; putting it in cannot be undone,
+because anything that reaches a public remote may be cloned, cached or indexed
+before it is removed.
 
 ## The source cohort
 
@@ -46,6 +54,21 @@ no image attached is still protected information, which is why
 `work/*.json`, `viewer/manifest.json` and `logs/` are excluded alongside the
 images themselves.
 
+## What may be added to `docs/img/`
+
+Only material that contains no patient data. At present:
+
+| file | why it is safe |
+|---|---|
+| `pipeline.svg` | a diagram — no imaging, no identifiers |
+| `results.png` | cohort means over 10 cases — no identifiers, no anatomy |
+
+**Viewer screenshots do not qualify.** They show patient anatomy, and the case
+selector and header show the accession ID. Neither does any output of
+`40_figures.py`: those render patient slices, and `fig.suptitle` burns the
+accession ID into the pixels, so renaming the file does not de-identify it.
+Both are blocked in `.gitignore`.
+
 ## Aggregate numbers are fine
 
 The tables in [results.md](results.md) and the README are cohort means over 10
@@ -72,9 +95,15 @@ and keep them off any host not covered by the governing data agreement.
 
 ## If patient data ever does reach a remote
 
-Removing it from the current commit is not enough — it stays reachable in the
-history, and on a hosting service it can remain fetchable by commit SHA after a
-force-push, independently of what the default branch points at. Rewriting
-history limits further exposure but does not by itself undo it. Treat such an
-event as a potential disclosure and escalate it to whoever administers the data
-agreement rather than resolving it purely technically.
+This has happened once in this repository's history, so the lesson is recorded
+here rather than left to memory.
+
+Removing the data from the current commit is **not** enough. It stays reachable
+in the history, and on GitHub it remains fetchable by commit SHA after a
+force-push, independently of what the default branch points at — verified, not
+assumed. Rewriting history limits further exposure but does not undo it.
+
+The only reliable removals are deleting the repository outright, or asking
+GitHub Support to purge the unreachable objects. Either way, treat the event as
+a potential disclosure and escalate it to whoever administers the data
+agreement; it is not a question a technical fix closes.

@@ -3,9 +3,10 @@
 Enhance MIHEART paired coronary CT with pretrained low-dose-CT diffusion
 denoisers, and compare the result against the registered CCTA.
 
-> **No patient data is committed here.** Images, metrics and MIHEART accession
-> identifiers are all excluded — a clone gives you code and documentation only.
-> Running the pipeline requires local access to the cohort.
+> **Public repository. No patient data is committed here, by standing policy.**
+> Images, metrics, MIHEART accession identifiers and viewer screenshots are all
+> excluded permanently — a clone gives you code and documentation only. Running
+> the pipeline requires local access to the cohort.
 > See [docs/data-and-privacy.md](docs/data-and-privacy.md).
 
 ## The framing
