@@ -1,0 +1,9 @@
+build: swipe-ccta-20261029-132531
+host:  wonko.via.cornell.edu
+path:  /mnt/raid2/amirg/Diff Models/viewer
+served from port 8712
+
+features in this build:
+  - swipe panel (panel #9, "swipe - before / after")
+  - independent CCTA window/level
+  - CCTA CoreDiff + CCTA FoundDiff panels

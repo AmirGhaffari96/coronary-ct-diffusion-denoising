@@ -90,7 +90,14 @@ The coronary mask overlays in red; grayscale can be inverted.
 
 ## Linkable state
 
-Everything lives in the URL, so a specific finding can be sent to someone else:
+Everything lives in the URL, so a specific finding can be sent to someone else.
+
+**A URL carrying `panels=` pins that panel set and overrides the defaults.** The
+viewer writes your selection into the address bar as you work, so a link saved
+before a panel existed will keep that panel switched off — in a private window
+too, since the state is in the URL rather than the cache. The **defaults** and
+**all** buttons above the panel list reset it; so does opening the viewer with
+no query string at all.
 
 ```
 ?case=<CASE-ID>&z=150&panels=ncct_original,ncct_founddiff

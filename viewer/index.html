@@ -75,7 +75,8 @@
 
 <aside>
   <h1>Coronary denoising viewer</h1>
-  <div class="sub">MIHEART · NCCT vs CoreDiff vs FoundDiff</div>
+  <div class="sub">MIHEART · NCCT vs CoreDiff vs FoundDiff<br>
+    <span style="opacity:.75">build <b id="build">swipe-ccta-20261029-132531</b></span></div>
 
   <fieldset><legend>Case</legend>
     <select id="case"></select>
@@ -85,6 +86,9 @@
   </fieldset>
 
   <fieldset><legend>Panels</legend>
+    <div class="row" style="margin-bottom:8px">
+      <button id="allPanels">all</button><button id="defPanels">defaults</button>
+    </div>
     <div id="panels"></div>
     <div id="swipeCfg">
       <div class="sub" style="margin:0 0 6px">Swipe panel — drag the blue divider</div>
@@ -529,6 +533,14 @@ function wireControls(){
     fitView(); render();
   };
   $('#swipeX').oninput=e=>{ swipe.x=+e.target.value; applySwipeX(); syncURL(); };
+  // A saved URL pins its panel set, so these give a one-click way back.
+  const setPanels=async names=>{
+    active=[...names];
+    buildPanelToggles(); syncSwipeCfg(); buildGrid();
+    await preload(); fitView(); render();
+  };
+  $('#defPanels').onclick=()=>setPanels(DEFAULT_ON);
+  $('#allPanels').onclick=()=>setPanels(Object.keys(LABEL));
   $('#fit').onclick=fitView;
   $('#reset').onclick=()=>{
     $('#preset').value='600,100';  $('#preset').dispatchEvent(new Event('change'));
